@@ -1,6 +1,8 @@
 import { APIUser } from 'discord-api-types/v10'
 import jwt from 'jsonwebtoken'
 
+// Make this shit better
+
 export class Oauth {
     clientSecret: String;
     clientId: String;
