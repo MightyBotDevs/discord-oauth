@@ -1,0 +1,29 @@
+{
+  "name": "discord-oauth",
+  "version": "1.0.0",
+  "description": "Simple discord oauth library ",
+  "main": "dist/index.js",
+  "repository": "https://github.com/MightyBotDevs/discord-oauth",
+  "author": "Dawid Jaworski <contact@minerpl.xyz>",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "dev": "npm run build && npm start",
+    "build": "rm -rf dist/ && tsc && resolve-tspaths",
+    "start": "node --enable-source-maps ."
+  },
+  "dependencies": {
+    "discord-api-types": "^0.27.1",
+    "jsonwebtoken": "^8.5.1",
+    "undici": "^4.14.1"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.12.0",
+    "@typescript-eslint/parser": "^5.12.0",
+    "eslint": "^8.16.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "resolve-tspaths": "^0.2.3",
+    "typescript": "^4.5.5"
+  }
+}
