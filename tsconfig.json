@@ -6,15 +6,21 @@
       "outDir": "dist",
       "moduleResolution": "node",
       "baseUrl": "src",
+      "declaration": true,
+      "declarationMap": true,
       "paths": {
         "@classes/*": ["classes/*"],
-        "@types/*": ["types/*"],
-        "@functions/*": ["functions/*"],
-        "@utils/*": ["utils/*"]
+        "@structures/*": ["structures/*"],
+        "@bitfields/*": ["bitfields/*"]
       },
       "allowSyntheticDefaultImports": true,
       "esModuleInterop": true,
       "skipLibCheck": true,
-      "forceConsistentCasingInFileNames": true
-    }
-  }
+      "forceConsistentCasingInFileNames": true,
+      "allowUnreachableCode": false,
+      "allowUnusedLabels": false,
+      "resolveJsonModule": true,
+      "sourceMap": true
+  },
+  "include": ["./src/**/*"]
+}

@@ -1,1 +1,1 @@
-module.exports.OAuth = require('@classes/Oauth');
+export * from './classes/Oauth';
