@@ -4,6 +4,7 @@ import cookies from 'cookies';
 import cookieParser from 'cookie-parser';
 import * as http from 'http';
 const debug = require('debug')('simple-oauth-ts:server')
+import 'dotenv/config'
 
 const port = 3000;
 

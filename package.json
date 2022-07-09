@@ -6,7 +6,7 @@
     "dev": "npm run build && npm start",
     "build": "rm -rf dist/ && tsc && resolve-tspaths",
     "start": "node --enable-source-maps .",
-    "watch": "tsc-watch --onSuccess \"npm run run\" --onFailure \"echo Compilation failed.\""
+    "watch": "tsc-watch --onSuccess \"npm run dev\" --onFailure \"echo Compilation failed.\""
   },
   "main": "dist/app.js",
   "types": "dist/app.d.ts",
@@ -21,6 +21,7 @@
     "cookie-parser": "~1.4.4",
     "cookies": "^0.8.0",
     "debug": "~2.6.9",
+    "dotenv": "^16.0.1",
     "express": "~4.16.1",
     "morgan": "~1.9.1"
   },

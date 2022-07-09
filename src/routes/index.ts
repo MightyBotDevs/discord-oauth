@@ -1,16 +1,15 @@
 import express from 'express';
 const router = express.Router();
-
 import { Oauth } from 'discord-oauth';
 
 const Discord = new Oauth({
-    clientId: '931224095402623047',
-    clientSecret: 'Bpe5TKKS9IsxhlRjO1GZbtQ22pebrEf6',
-    token: 'OTMxMjI0MDk1NDAyNjIzMDQ3.YeBUBQ.y30YG27wNQnzhM27Nq6i_I9Mb8U'
+    clientId: process.env.CLIENT_ID,
+    clientSecret: process.env.CLIENT_SECRET,
+    token: process.env.TOKEN
 });
 
 // @ts-ignore
-Discord.setScopes(['identify', 'guilds']);
+Discord.setScopes(['identify', 'guilds', 'guilds.join']);
 Discord.setRedirectUri('http://localhost:3000/login/callback');
 
 router.get(`/login/callback`, async function (req, res) {
@@ -30,7 +29,7 @@ router.get(`/login/callback`, async function (req, res) {
     const user = await Discord.getUser(auth).catch(e => {
         console.error(e);
         return null;
-    })
+    });
 
     const guilds = await Discord.getGuilds(auth).catch(e => {
         console.error(e);
@@ -56,12 +55,11 @@ router.get('/', async function(req, res) {
         return null;
     });
 
-    const guilds = await Discord.getGuilds(key).catch(e => {
-        console.error(e);
-        return null;
-    });
+    const guilds = await Discord.getGuilds(key);
 
     if(!user || !guilds) return res.redirect(Discord.getAuthorizationURL())
+
+    await user.joinServer('742114424848122026').catch(e => e)
 
     res.json({user, guilds})
 });
