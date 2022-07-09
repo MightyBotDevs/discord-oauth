@@ -20,6 +20,22 @@ interface OAuth2Options {
 	apiVersion?: string;
 }
 
+/**
+ * Main library class
+ * @param {options} options - Options object
+ * @property {string} #clientSecret - Client Secret
+ * @property {string} #token - Bot access token
+ * @property {string} clientId - Client ID
+ * @property {string[]} scopes - Scopes to request
+ * @property {string} redirectUri - Redirect URI
+ * @property {object} cache - Cache object
+ * @property {string} apiVersion - API version
+ * @property {string} baseURL - Discord API URL
+ * @property {REST} rest - REST client
+ * @property {UserManagers} users - User managers
+ * @property {GuildManager} guilds - Guild manager
+ * @class
+ */
 export class Oauth {
 	#clientSecret: string;
 	#token: string;
@@ -62,19 +78,38 @@ export class Oauth {
 		this.users = new UserManagers(this);
 	}
 
-	public setRedirectUri(uri: string): string {
+	/**
+	 * Set the redirect URI
+	 * @param {string} uri - Redirect URI
+	 * @returns {string} Redirect URI
+	 */
+	setRedirectUri(uri: string): string {
 		return this.redirectUri = uri;
 	}
 
-	public setScopes(scopes: string[]): string[] {
+	/**
+	 * Set the scopes
+	 * @returns {string} Oauth scopes
+	 * @param {string[]} scopes - OAuth scopes
+	 */
+	setScopes(scopes: string[]): string[] {
 		return this.scopes = (scopes as OAuth2Scopes[]).filter(scope => Object.values(OAuth2Scopes).includes(scope));
 	}
 
-	public getAuthorizationURL(): string {
+	/**
+	 * Get autorization URL
+	 * @return {string} - Authorization URL
+	 */
+	getAuthorizationURL(): string {
 		if(!this.redirectUri) throw new Error('Missing or invalid redirectUri');
 		return `${this.baseURL}/oauth2/authorize?client_id=${this.clientId}&scope=${this.scopes.join('%20')}&response_type=code&redirect_uri=${this.redirectUri}`;
 	}
 
+	/**
+	 * OAuth Exchange Code for Access Token
+	 * @param {string} key - Access code from Discord
+	 * @return {Promise<RESTPostOAuth2AccessTokenResult>} - Access token
+	 */
 	public async getAccess(key): Promise<string | Error> {
 
 		if(typeof key !== 'string') return new Error('Invalid authorization code');
@@ -114,6 +149,12 @@ export class Oauth {
 
 	}
 
+	/**
+	 * Get User from cache
+	 * @param {string} key - Access token
+	 * @param {boolean} [cache=true] - Use cache
+	 * @return {Promise<User>} - User object
+	 */
 	async getUser(key: string, cache?: boolean): Promise<User> {
 		if(typeof key !== 'string') throw new Error('Invalid access code');
 		return await this.users.get(key, cache).catch(e => {
@@ -121,6 +162,11 @@ export class Oauth {
 		});
 	}
 
+	/**
+	 * Fetch user from API
+	 * @param {string} key - Access token
+	 * @return {Promise<OAuthUser>} - User object
+	 */
 	async fetchUser(key: string): Promise<OAuthUser> {
 		if(typeof key !== 'string') throw new Error('Invalid access code');
 		const access: RESTPostOAuth2AccessTokenResult = verify(key, this.#clientSecret);
@@ -145,6 +191,12 @@ export class Oauth {
 		return json;
 	}
 
+	/**
+	 * Get guilds from cache
+	 * @param {string} key - Access token
+	 * @param {boolean} [cache=true] - Use cache
+	 * @return {Promise<Guild[]>} - User object
+	 */
 	async getGuilds(key: string, cache?: boolean): Promise<Guild[]> {
 		if(typeof key !== 'string') throw new Error('Invalid access code');
 		return await this.guilds.get(key, cache).catch(e => {
@@ -152,6 +204,11 @@ export class Oauth {
 		});
 	}
 
+	/**
+	 * Fetch guild from API
+	 * @param {string} key - Access token
+	 * @return {Promise<OAuthGuild[]>} - User object
+	 */
 	async fetchGuilds(key: string): Promise<OAuthGuild[]> {
 		if(typeof key !== 'string') throw new Error('Invalid access code');
 		const access: RESTPostOAuth2AccessTokenResult = verify(key, this.#clientSecret);
