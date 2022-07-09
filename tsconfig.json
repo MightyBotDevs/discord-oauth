@@ -11,7 +11,8 @@
       "paths": {
         "@classes/*": ["classes/*"],
         "@structures/*": ["structures/*"],
-        "@bitfields/*": ["bitfields/*"]
+        "@bitfields/*": ["bitfields/*"],
+        "@managers/*": ["managers/*"]
       },
       "allowSyntheticDefaultImports": true,
       "esModuleInterop": true,

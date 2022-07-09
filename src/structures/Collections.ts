@@ -11,7 +11,7 @@ export class Collection extends Map {
 
 export class UserCollection extends Collection {
 	constructor(...params) {
-		// @ts-ignore
+		// @ts-expect-error
 		super(...params);
 	}
 
@@ -24,29 +24,6 @@ export class UserCollection extends Collection {
 					.then(user => {
 						this.set(key, user);
 						resolve(user);
-					})
-					.catch(reject);
-			}
-		});
-	}
-}
-
-
-export class GuildsCollection extends Collection {
-	constructor(...params) {
-		// @ts-ignore
-		super(...params);
-	}
-
-	async fetch(key, cache = true) {
-		return new Promise((resolve, reject) => {
-			if (this.has(key) && cache) {resolve(this.get(key));}
-			else {
-				this.client
-					.getGuilds(key)
-					.then(guilds => {
-						this.set(key, guilds);
-						resolve(guilds);
 					})
 					.catch(reject);
 			}

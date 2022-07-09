@@ -4,11 +4,11 @@ export class BitField {
 	constructor(map: Record<string, number | bigint>, bits: number | bigint | number[] | bigint[]) {
 		this.map = map;
 		if (Array.isArray(bits)) {
-			// @ts-ignore
+			// @ts-expect-error
 			bits = bits.reduce((acc, val) => acc | BigInt(val), 0n);
 		}
-		// @ts-ignore
-		if (bits) this.bits = BigInt(bits);
+		// @ts-expect-error
+		this.bits = BigInt(bits || 0n);
 	}
 
 	resolve(value: string) {
