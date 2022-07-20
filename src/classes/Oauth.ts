@@ -111,7 +111,6 @@ export class Oauth {
 	 * @return {Promise<RESTPostOAuth2AccessTokenResult>} - Access token
 	 */
 	public async getAccess(key): Promise<string | Error> {
-
 		if(typeof key !== 'string') return new Error('Invalid authorization code');
 		// TODO Change fetch method to @discord.js/rest
 
@@ -134,7 +133,7 @@ export class Oauth {
 
 		if(!request.ok) {
 			// @ts-expect-error
-			return new DiscordAPIError(json, json?.code, res.status, 'POST', `${this.baseURL}/oauth2/token`, { files: undefined, body });
+			return new DiscordAPIError(json, json?.code, request.status, 'POST', `${this.baseURL}/oauth2/token`, { files: undefined, body });
 		}
 
 		const token: string = sign(json, this.#clientSecret);
