@@ -10,7 +10,7 @@ import { REST, DiscordAPIError, DiscordErrorData, OAuthErrorData } from '@discor
 import { Guild } from '@structures/Guild';
 import { GuildManager } from '@managers/GuildManager';
 import { OAuthGuild } from '../types/OAuthGuild';
-import { UserManagers } from '@managers/UserManagers';
+import { UserManagers } from '@managers/UserManager';
 import { OAuthUser } from '../types/OAuthUser';
 
 interface OAuth2Options {
