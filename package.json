@@ -1,6 +1,6 @@
 {
-  "name": "discord-oauth",
-  "version": "1.0.0",
+  "name": "discord-auth2",
+  "version": "1.0.1",
   "description": "Simple discord oauth library",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

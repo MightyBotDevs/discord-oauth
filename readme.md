@@ -4,17 +4,17 @@ Simple library to interact with Discord's OAuth2 API.
 For more information about OAuth2, see [the official documentation](https://discord.com/developers/docs/topics/oauth2).
 
 ### Example 
-Example webserver using [express](https://expressjs.com/) and library can be found on [express branche](https://github.com/MightyBotDevs/discord-oauth/tree/express)
+Example webserver using [express](https://expressjs.com/) and library can be found on [express branch](https://github.com/MightyBotDevs/discord-oauth/tree/express)
 
 
 ### Installing
 ```shell
-npm install discord-oauth
+npm install discord-auth2
 ```
 
 ### Usage
 ```javascript
-import { OAuth } from 'discord-oauth';
+import { OAuth } from 'discord-auth2';
 const Discord = new OAuth({
     clientId: '123456789012345678',
     clientSecret: '123456789012345678',
