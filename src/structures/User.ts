@@ -59,7 +59,6 @@ export class User {
 		this.locale = data.locale;
 		this.mfaEnabled = data.mfa_enabled;
 		this.premiumType = data.premium_type;
-		console.log(data.public_flags);
 		this.publicFlags = new UserFlags(data.public_flags).toArray();
 
 		this.#accessToken = data.access_token;
