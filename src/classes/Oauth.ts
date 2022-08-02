@@ -179,6 +179,37 @@ export class Oauth {
 		return await this.tokenExchangeEndpoint(body);
 	}
 
+	public async revokeToken(key): Promise<Record<string, boolean> | Error> {
+		if(typeof key !== 'string') throw new Error('Invalid access code');
+		const access: RESTPostOAuth2AccessTokenResult = verify(key, this.#clientSecret);
+
+		const request = await fetch(this.baseURL + Routes.oauth2TokenRevocation(), {
+			method: 'POST',
+			body: new URLSearchParams({
+				client_id: this.clientId,
+				client_secret: this.#clientSecret,
+				token: access.refresh_token,
+			}),
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+			},
+		});
+
+		let json = await request.json() as DiscordErrorData;
+
+		if(!request.ok) {
+			json = json as DiscordErrorData;
+			new DiscordAPIError(json, json?.code, request.status, 'GET', `${this.baseURL}/users/@me/guilds`, { files: undefined, body: undefined });
+		}
+
+		this.cache.users.delete(key);
+		this.cache.guilds.delete(key);
+		this.cache.connections.delete(key);
+
+		return {
+			revoked: true,
+		};
+	}
 
 	/**
 	 * Get User from cache
