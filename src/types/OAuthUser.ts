@@ -5,8 +5,9 @@ export interface OAuthUser {
     id: Snowflake;
     username: string;
     discriminator: string;
-    avatar_hash: string | null;
-    banner_hash: string | null;
+    email?: string | null;
+    avatar: string | null;
+    banner: string | null;
     banner_color: string | null;
     accent_color: number;
     avatar_decoration: string | null;

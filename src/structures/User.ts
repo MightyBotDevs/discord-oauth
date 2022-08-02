@@ -33,6 +33,7 @@ export class User {
 	username: string;
 	discriminator: string;
 	tag: string;
+	email?: string | null;
 	avatarHash: string | null;
 	bannerHash: string | null;
 	bannerColor: string | null;
@@ -40,7 +41,7 @@ export class User {
 	avatarDecoration: string | null;
 	locale: string;
 	mfaEnabled: boolean;
-	premiumType: number;
+	premiumType?: number | null;
 	publicFlags: string[];
 
 	#accessToken: RESTPostOAuth2AccessTokenResult;
@@ -51,8 +52,9 @@ export class User {
 		this.username = data.username;
 		this.discriminator = data.discriminator;
 		this.tag = `${data.username}#${data.discriminator}`;
-		this.avatarHash = data.avatar_hash;
-		this.bannerHash = data.banner_hash;
+		this.email = data.email || null;
+		this.avatarHash = data.avatar;
+		this.bannerHash = data.banner;
 		this.bannerColor = data.banner_color;
 		this.accentColor = data.accent_color;
 		this.avatarDecoration = data.avatar_decoration;
