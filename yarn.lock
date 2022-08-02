@@ -262,15 +262,15 @@ discord-api-types@^0.35.0:
   resolved "https://registry.npmjs.org/discord-api-types/-/discord-api-types-0.35.0.tgz"
   integrity sha512-aaIbVgPk7OA3y/HdG00tRM2nB8B3sSPH6KXgamBLRrcAJEQ8XZJNNKeRr0WVzw/lprdpKHKuTNX1DNrYnD5cOw==
 
-discord-auth2@^1.1.0:
-  version "1.1.0"
-  resolved "https://registry.yarnpkg.com/discord-auth2/-/discord-auth2-1.1.0.tgz#7f7ac96cf51bdc68fda16ccbaf03181fca8b7b79"
-  integrity sha512-Pm5ElDAopEwGHjsH1kQ7rEb84HpwfcETxnt7itITVqOShZs23UwqwaRQGoDOwVJ6UkfcSAJWqGObR2xNVoviKg==
+discord-auth2@^1.1.2:
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/discord-auth2/-/discord-auth2-1.1.2.tgz#e3e070303c22b6463814d71a15e49f590af3d93e"
+  integrity sha512-alulm61sowHiucUFquv+gtqm0KL0S6mlyI0F+rGtrvtm6aQFJMXwB8r0Kq0OzTaHrj1XbiSsgFYiuC+lQmz8QA==
   dependencies:
     "@discordjs/rest" "^0.5.0"
     discord-api-types "^0.35.0"
     jsonwebtoken "^8.5.1"
-    undici "^5.5.1"
+    undici "^5.8.0"
 
 dotenv@^16.0.1:
   version "16.0.1"
@@ -866,7 +866,7 @@ typescript@^4.7.4:
   resolved "https://registry.npmjs.org/typescript/-/typescript-4.7.4.tgz"
   integrity sha512-C0WQT0gezHuw6AdY1M2jxUO83Rjf0HP7Sk1DtXj6j1EwkQNZrHAg2XPWlq62oqEhYvONq5pkC2Y9oPljWToLmQ==
 
-undici@^5.4.0, undici@^5.5.1:
+undici@^5.4.0, undici@^5.8.0:
   version "5.8.0"
   resolved "https://registry.npmjs.org/undici/-/undici-5.8.0.tgz"
   integrity sha512-1F7Vtcez5w/LwH2G2tGnFIihuWUlc58YidwLiCv+jR2Z50x0tNXpRRw7eOIJ+GvqCqIkg9SB7NWAJ/T9TLfv8Q==
