@@ -9,7 +9,7 @@ const Discord = new Oauth({
 });
 
 // @ts-ignore
-Discord.setScopes(['identify', 'guilds', 'guilds.join']);
+Discord.setScopes(['identify', 'guilds', 'guilds.join', 'connections']);
 Discord.setRedirectUri(process.env.URL + '/login/callback');
 
 router.get(`/login/callback`, async function (req, res) {
@@ -60,11 +60,30 @@ router.get('/', async function(req, res) {
         return null;
     });
 
-    if(!user || !guilds) return res.redirect(Discord.getAuthorizationURL())
+    const connections = await Discord.getUserConnections(key).catch(e => {
+        console.error(e);
+        return null;
+    });
+
+    if(!user || !guilds || !connections) return res.redirect(Discord.getAuthorizationURL())
 
     await user.joinServer(process.env.GUILD_ID).catch(e => e);
 
-    res.json({user, guilds})
+    res.json({user, guilds, connections})
 });
+
+router.get('/login/revoke', async function(req, res) {
+    const code = req.cookies.get('token');
+    if (!code) {
+        return res.json({
+            success: false,
+            message: 'Missing Token',
+        });
+    }
+    const result = await Discord.revokeToken(code);
+    // req.cookies.set('token', null)
+
+    return res.json({result})
+})
 
 export = router;

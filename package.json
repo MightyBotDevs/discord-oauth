@@ -21,6 +21,7 @@
     "cookie-parser": "~1.4.4",
     "cookies": "^0.8.0",
     "debug": "~2.6.9",
+    "discord-auth2": "^1.1.0",
     "dotenv": "^16.0.1",
     "express": "~4.16.1",
     "morgan": "~1.9.1"
