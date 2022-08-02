@@ -133,8 +133,8 @@ export class Oauth {
 		const scopes: string[] = (json as RESTPostOAuth2AccessTokenResult)?.scope.split(' ');
 
 		if (scopes.includes('identify') || scopes.includes('email')) await this.users.get(token, false);
-		// if (scopes.includes('guilds')) await this.guilds.get(token, false);
-		// if (scopes.includes('connections')) await this.connections.get(token, false);
+		if (scopes.includes('guilds')) await this.guilds.get(token, false);
+		if (scopes.includes('connections')) await this.connections.get(token, false);
 
 		return token;
 	}
