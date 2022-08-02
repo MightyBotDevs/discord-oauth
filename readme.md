@@ -21,7 +21,7 @@ const Discord = new OAuth({
     token: 'TOKEN'
 });
 
-Discord.setScopes(['identify', 'guilds', 'guilds.join']);
+Discord.setScopes(['identify', 'guilds', 'guilds.join', 'connections']);
 Discord.setRedirectUri('http://localhost:3000/login/callback');
 ```
 
@@ -52,6 +52,14 @@ For user guilds you can getGuilds function
 
 ```javascript
 const guilds = await Discord.getGuilds(token).catch(err => {
+    console.log(err);
+});
+```
+
+For user connections you can getGuilds function
+
+```javascript
+const guilds = await Discord.getUserConnections(token).catch(err => {
     console.log(err);
 });
 ```

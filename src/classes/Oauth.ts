@@ -2,16 +2,19 @@ import {
 	RESTPostOAuth2AccessTokenResult,
 	OAuth2Scopes,
 	Routes,
+	APIConnection,
 } from 'discord-api-types/v10';
 import { sign, verify } from 'jsonwebtoken';
 import { fetch } from 'undici';
-import { User } from '@structures/User';
-import { REST, DiscordAPIError, DiscordErrorData, OAuthErrorData } from '@discordjs/rest';
-import { Guild } from '@structures/Guild';
+import { REST, DiscordAPIError, DiscordErrorData } from '@discordjs/rest';
 import { GuildManager } from '@managers/GuildManager';
 import { OAuthGuild } from '../types/OAuthGuild';
+import { Guild } from '@structures/Guild';
 import { UserManagers } from '@managers/UserManager';
 import { OAuthUser } from '../types/OAuthUser';
+import { User } from '@structures/User';
+import { ConnectionManager } from '@managers/ConnectionManager';
+import { Connection } from '@structures/Connection';
 
 interface OAuth2Options {
 	clientId: string;
@@ -46,6 +49,7 @@ export class Oauth {
 	cache: {
 		guilds: Map<string, Guild[]>,
 		users: Map<string, User>,
+		connections: Map<string, Connection[]>,
 	};
 
 	apiVersion: string;
@@ -54,6 +58,7 @@ export class Oauth {
 
 	guilds: GuildManager;
 	users: UserManagers;
+	connections: ConnectionManager;
 	constructor(options: OAuth2Options) {
 		this.#clientSecret = options.clientSecret;
 		this.#token = options.token;
@@ -64,6 +69,7 @@ export class Oauth {
 		this.cache = {
 			guilds: new Map(),
 			users: new Map(),
+			connections: new Map(),
 		};
 
 		this.apiVersion = options.apiVersion || '10';
@@ -76,6 +82,7 @@ export class Oauth {
 
 		this.guilds = new GuildManager(this);
 		this.users = new UserManagers(this);
+		this.connections = new ConnectionManager(this);
 	}
 
 	/**
@@ -105,6 +112,33 @@ export class Oauth {
 		return `${this.baseURL}/oauth2/authorize?client_id=${this.clientId}&scope=${this.scopes.join('%20')}&response_type=code&redirect_uri=${this.redirectUri}`;
 	}
 
+	private async tokenExchangeEndpoint(body): Promise<DiscordAPIError | string> {
+		const request = await fetch(this.baseURL + Routes.oauth2TokenExchange(), {
+			method: 'POST',
+			body,
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+			},
+		});
+
+		let json = (await request.json()) as RESTPostOAuth2AccessTokenResult | DiscordErrorData;
+
+		if(!request.ok) {
+			json = (json as DiscordErrorData);
+			return new DiscordAPIError(json, json?.code, request.status, 'POST', `${this.baseURL}/oauth2/token`, { files: undefined, body });
+		}
+
+		const token: string = sign(json, this.#clientSecret);
+
+		const scopes: string[] = (json as RESTPostOAuth2AccessTokenResult)?.scope.split(' ');
+
+		if (scopes.includes('identify') || scopes.includes('email')) await this.users.get(token, false);
+		if (scopes.includes('guilds')) await this.guilds.get(token, false);
+		if (scopes.includes('connections')) await this.connections.get(token, false);
+
+		return token;
+	}
+
 	/**
 	 * OAuth Exchange Code for Access Token
 	 * @param {string} key - Access code from Discord
@@ -114,39 +148,37 @@ export class Oauth {
 		if(typeof key !== 'string') return new Error('Invalid authorization code');
 		// TODO Change fetch method to @discord.js/rest
 
-		const request = await fetch(this.baseURL + Routes.oauth2TokenExchange(), {
-			method: 'POST',
-			body: new URLSearchParams({
-				client_id: this.clientId,
-				client_secret: this.#clientSecret,
-				grant_type: 'authorization_code',
-				redirect_uri: this.redirectUri,
-				code: key,
-				scope: this.scopes.join(' '),
-			}),
-			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded',
-			},
+		const body = new URLSearchParams({
+			client_id: this.clientId,
+			client_secret: this.#clientSecret,
+			grant_type: 'authorization_code',
+			redirect_uri: this.redirectUri,
+			code: key,
+			scope: this.scopes.join(' '),
 		});
 
-		const json = (await request.json()) as (DiscordAPIError & OAuthErrorData) | RESTPostOAuth2AccessTokenResult;
-
-		if(!request.ok) {
-			// @ts-expect-error
-			return new DiscordAPIError(json, json?.code, request.status, 'POST', `${this.baseURL}/oauth2/token`, { files: undefined, body });
-		}
-
-		const token: string = sign(json, this.#clientSecret);
-
-		// @ts-expect-error
-		const scopes: string[] = json?.scope.split(' ');
-
-		if (scopes.includes('identify') || scopes.includes('email')) await this.users.get(token, false);
-		if (scopes.includes('guilds')) await this.guilds.get(token, false);
-
-		return token;
-
+		return await this.tokenExchangeEndpoint(body);
 	}
+
+	/**
+	 * Refresh user OAuth tokens
+	 * @param {string} key - Access token
+	 * @return {Promise<RESTPostOAuth2AccessTokenResult>} - User object
+	 */
+	public async refreshToken(key): Promise<string | Error> {
+		if(typeof key !== 'string') throw new Error('Invalid access code');
+		const access: RESTPostOAuth2AccessTokenResult = verify(key, this.#clientSecret);
+
+		const body = new URLSearchParams({
+			client_id: this.clientId,
+			client_secret: this.#clientSecret,
+			grant_type: 'refresh_token',
+			refresh_token: access.refresh_token,
+		});
+
+		return await this.tokenExchangeEndpoint(body);
+	}
+
 
 	/**
 	 * Get User from cache
@@ -179,8 +211,8 @@ export class Oauth {
 		let json = (await res.json() as DiscordErrorData | OAuthUser);
 
 		if(!res.ok) {
-			// @ts-expect-error
-			new Error(new DiscordAPIError(json, json?.code, res.status, 'GET', `${this.baseURL}/users/@me`, { files: undefined, body: undefined }));
+			json = (json as DiscordErrorData);
+			new DiscordAPIError(json, json?.code, res.status, 'GET', `${this.baseURL}/users/@me`, { files: undefined, body: undefined });
 		}
 
 		json = json as OAuthUser;
@@ -194,7 +226,7 @@ export class Oauth {
 	 * Get guilds from cache
 	 * @param {string} key - Access token
 	 * @param {boolean} [cache=true] - Use cache
-	 * @return {Promise<Guild[]>} - User object
+	 * @return {Promise<Guild[]>} - Guilds object
 	 */
 	async getGuilds(key: string, cache?: boolean): Promise<Guild[]> {
 		if(typeof key !== 'string') throw new Error('Invalid access code');
@@ -206,7 +238,7 @@ export class Oauth {
 	/**
 	 * Fetch guild from API
 	 * @param {string} key - Access token
-	 * @return {Promise<OAuthGuild[]>} - User object
+	 * @return {Promise<OAuthGuild[]>} - Guilds object
 	 */
 	async fetchGuilds(key: string): Promise<OAuthGuild[]> {
 		if(typeof key !== 'string') throw new Error('Invalid access code');
@@ -218,14 +250,51 @@ export class Oauth {
 			},
 		});
 
-		const json = (await res.json() as DiscordErrorData | OAuthGuild[]);
+		let json = (await res.json() as DiscordErrorData | OAuthGuild[]);
 
 		if(!res.ok) {
-			// @ts-expect-error
-			throw new Error(new DiscordAPIError(json, json?.code, res.status, 'GET', `${this.baseURL}/users/@me/guilds`, { files: undefined, body: undefined }));
+			json = json as DiscordErrorData;
+			new DiscordAPIError(json, json?.code, res.status, 'GET', `${this.baseURL}/users/@me/guilds`, { files: undefined, body: undefined });
 		}
 
-		// @ts-expect-error
-		return json;
+		return json as OAuthGuild[];
+	}
+
+	/**
+	 * Get connections from cache
+	 * @param {string} key - Access token
+	 * @param {boolean} [cache=true] - Use cache
+	 * @return {Promise<Connection[]>} - Connections object
+	 */
+	async getUserConnections(key: string, cache?: boolean): Promise<Connection[]> {
+		if(typeof key !== 'string') throw new Error('Invalid access code');
+		return await this.connections.get(key, cache).catch(e => {
+			throw new Error(e);
+		});
+	}
+
+	/**
+	 * Fetch connections from API
+	 * @param {string} key - Access token
+	 * @return {Promise<APIConnection[]>} - User object
+	 */
+	async fetchUserConnections(key: string): Promise<(APIConnection & { two_way_link: boolean; })[]> {
+		if(typeof key !== 'string') throw new Error('Invalid access code');
+		const access: RESTPostOAuth2AccessTokenResult = verify(key, this.#clientSecret);
+
+		const res = await fetch(`${this.baseURL}/users/@me/connections`, {
+			headers: {
+				Authorization: `${access.token_type} ${access.access_token}`,
+			},
+		});
+
+		let json = (await res.json() as DiscordErrorData | (APIConnection & { two_way_link: boolean; })[]);
+
+		if(!res.ok) {
+			json = json as DiscordErrorData;
+			new DiscordAPIError(json, json?.code, res.status, 'GET', `${this.baseURL}/users/@me/connections`, { files: undefined, body: undefined });
+		}
+
+		return json as (APIConnection & { two_way_link: boolean; })[];
 	}
 }
