@@ -24,9 +24,8 @@ export class GuildManager {
 
 		if (mapData && cache) return mapData;
 
-		const fetched = await this.client.fetchGuilds(key).catch(e => {
-			throw new Error(e);
-		});
+		const fetched = await this.client.fetchGuilds(key);
+
 		const guilds = fetched.map(g => new Guild(this.client, g));
 		this.client.cache.guilds.set(key, guilds);
 		return guilds;

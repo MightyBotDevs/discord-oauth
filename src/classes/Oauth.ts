@@ -125,7 +125,7 @@ export class Oauth {
 
 		if(!request.ok) {
 			json = (json as DiscordErrorData);
-			return new DiscordAPIError(json, json?.code, request.status, 'POST', `${this.baseURL}/oauth2/token`, { files: undefined, body });
+			throw new DiscordAPIError(json, json?.code, request.status, 'POST', `${this.baseURL}/oauth2/token`, { files: undefined, body });
 		}
 
 		const token: string = sign(json, this.#clientSecret);
@@ -133,8 +133,8 @@ export class Oauth {
 		const scopes: string[] = (json as RESTPostOAuth2AccessTokenResult)?.scope.split(' ');
 
 		if (scopes.includes('identify') || scopes.includes('email')) await this.users.get(token, false);
-		if (scopes.includes('guilds')) await this.guilds.get(token, false);
-		if (scopes.includes('connections')) await this.connections.get(token, false);
+		// if (scopes.includes('guilds')) await this.guilds.get(token, false);
+		// if (scopes.includes('connections')) await this.connections.get(token, false);
 
 		return token;
 	}
@@ -179,6 +179,12 @@ export class Oauth {
 		return await this.tokenExchangeEndpoint(body);
 	}
 
+
+	/**
+	 * Revoke User token
+	 * @param {string} key - Access token
+	 * @return {Promise<Record<string, boolean>>} - JSON object
+	 */
 	public async revokeToken(key): Promise<Record<string, boolean> | Error> {
 		if(typeof key !== 'string') throw new Error('Invalid access code');
 		const access: RESTPostOAuth2AccessTokenResult = verify(key, this.#clientSecret);
@@ -199,7 +205,7 @@ export class Oauth {
 
 		if(!request.ok) {
 			json = json as DiscordErrorData;
-			new DiscordAPIError(json, json?.code, request.status, 'GET', `${this.baseURL}/users/@me/guilds`, { files: undefined, body: undefined });
+			throw new DiscordAPIError(json, json?.code, request.status, 'GET', `${this.baseURL}/users/@me/guilds`, { files: undefined, body: undefined });
 		}
 
 		this.cache.users.delete(key);
@@ -219,9 +225,7 @@ export class Oauth {
 	 */
 	async getUser(key: string, cache?: boolean): Promise<User> {
 		if(typeof key !== 'string') throw new Error('Invalid access code');
-		return await this.users.get(key, cache).catch(e => {
-			throw new Error(e);
-		});
+		return await this.users.get(key, cache);
 	}
 
 	/**
@@ -241,9 +245,9 @@ export class Oauth {
 
 		let json = (await res.json() as DiscordErrorData | OAuthUser);
 
-		if(!res.ok) {
+		if(res.status !== 200) {
 			json = (json as DiscordErrorData);
-			new DiscordAPIError(json, json?.code, res.status, 'GET', `${this.baseURL}/users/@me`, { files: undefined, body: undefined });
+			throw new DiscordAPIError(json, json?.code, res.status, 'GET', `${this.baseURL}/users/@me`, { files: undefined, body: undefined });
 		}
 
 		json = json as OAuthUser;
@@ -261,9 +265,7 @@ export class Oauth {
 	 */
 	async getGuilds(key: string, cache?: boolean): Promise<Guild[]> {
 		if(typeof key !== 'string') throw new Error('Invalid access code');
-		return await this.guilds.get(key, cache).catch(e => {
-			throw new Error(e);
-		});
+		return await this.guilds.get(key, cache);
 	}
 
 	/**
@@ -283,9 +285,9 @@ export class Oauth {
 
 		let json = (await res.json() as DiscordErrorData | OAuthGuild[]);
 
-		if(!res.ok) {
+		if(res.status !== 200) {
 			json = json as DiscordErrorData;
-			new DiscordAPIError(json, json?.code, res.status, 'GET', `${this.baseURL}/users/@me/guilds`, { files: undefined, body: undefined });
+			throw new DiscordAPIError(json, json?.code, res.status, 'GET', `${this.baseURL}/users/@me/guilds`, { files: undefined, body: undefined });
 		}
 
 		return json as OAuthGuild[];
@@ -299,9 +301,7 @@ export class Oauth {
 	 */
 	async getUserConnections(key: string, cache?: boolean): Promise<Connection[]> {
 		if(typeof key !== 'string') throw new Error('Invalid access code');
-		return await this.connections.get(key, cache).catch(e => {
-			throw new Error(e);
-		});
+		return await this.connections.get(key, cache);
 	}
 
 	/**
@@ -321,9 +321,9 @@ export class Oauth {
 
 		let json = (await res.json() as DiscordErrorData | (APIConnection & { two_way_link: boolean; })[]);
 
-		if(!res.ok) {
+		if(res.status !== 200) {
 			json = json as DiscordErrorData;
-			new DiscordAPIError(json, json?.code, res.status, 'GET', `${this.baseURL}/users/@me/connections`, { files: undefined, body: undefined });
+			throw new DiscordAPIError(json, json?.code, res.status, 'GET', `${this.baseURL}/users/@me/connections`, { files: undefined, body: undefined });
 		}
 
 		return json as (APIConnection & { two_way_link: boolean; })[];

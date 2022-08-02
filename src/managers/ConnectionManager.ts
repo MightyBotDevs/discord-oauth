@@ -1,5 +1,6 @@
 import { Oauth } from '@classes/Oauth';
 import { Connection } from '@structures/Connection';
+import { DiscordAPIError } from '@discordjs/rest';
 
 /**
  * Connection manager class
@@ -24,9 +25,8 @@ export class ConnectionManager {
 
 		if (mapData && cache) return mapData;
 
-		const fetched = await this.client.fetchUserConnections(key).catch(e => {
-			throw new Error(e);
-		});
+		const fetched = await this.client.fetchUserConnections(key);
+
 		const connections = fetched.map(c => new Connection(this.client, c));
 		this.client.cache.connections.set(key, connections);
 		return connections;

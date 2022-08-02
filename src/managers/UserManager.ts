@@ -1,5 +1,6 @@
 import { Oauth } from '@classes/Oauth';
 import { User } from '@structures/User';
+import { DiscordAPIError } from '@discordjs/rest';
 
 /**
  * User manager class
@@ -24,9 +25,7 @@ export class UserManagers {
 
 		if (mapData && cache) return mapData;
 
-		const fetched = await this.client.fetchUser(key).catch(e => {
-			throw new Error(e);
-		});
+		const fetched = await this.client.fetchUser(key);
 
 		this.client.cache.users.set(key, new User(this.client, fetched));
 		return new User(this.client, fetched);
