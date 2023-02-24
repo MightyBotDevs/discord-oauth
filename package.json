@@ -30,7 +30,7 @@
   "dependencies": {
     "@discordjs/rest": "^0.5.0",
     "discord-api-types": "^0.37.35",
-    "jsonwebtoken": "^8.5.1",
+    "jsonwebtoken": "^9.0.0",
     "undici": "^5.20.0"
   },
   "devDependencies": {
