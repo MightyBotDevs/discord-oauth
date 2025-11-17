@@ -2,32 +2,63 @@ import { Oauth } from '@classes/Oauth';
 import { Guild } from '@structures/Guild';
 
 /**
- * Guild manager class
- * @param {Oauth} client - Client instance
- * @class
- * @property {Oauth} #client - Client instance
+ * Manages guild data and caching
  */
 export class GuildManager {
-	client: Oauth;
+	/** OAuth client instance */
+	readonly #client: Oauth;
+
+	/**
+	 * Creates a new GuildManager instance
+	 * @param client - OAuth client instance
+	 */
 	constructor(client: Oauth) {
-		this.client = client;
+		this.#client = client;
 	}
 
 	/**
-	 * Get a user guilds
-	 * @param {string} key User Access Token
-	 * @param {boolean} cache whether to get from cache or force fetch
-	 * @returns {Promise<Guild[]>}
+	 * Gets user's guilds, either from cache or by fetching from the API
+	 * @param key - User access token
+	 * @param useCache - Whether to use cached data if available
+	 * @returns Array of guild objects
 	 */
-	async get(key, cache = true): Promise<Guild[]> {
-		const mapData = this.client.cache.guilds.get(key);
+	async get(key: string, useCache: boolean = true): Promise<Guild[]> {
+		if (useCache) {
+			const cached = this.#client.cache.guilds.get(key);
+			if (cached) {
+				return cached;
+			}
+		}
 
-		if (mapData && cache) return mapData;
-
-		const fetched = await this.client.fetchGuilds(key);
-
-		const guilds = fetched.map(g => new Guild(this.client, g));
-		this.client.cache.guilds.set(key, guilds);
+		const data = await this.#client.fetchGuilds(key);
+		const guilds = data.map(g => new Guild(this.#client, g));
+		
+		this.#client.cache.guilds.set(key, guilds);
 		return guilds;
+	}
+
+	/**
+	 * Removes guilds from the cache
+	 * @param key - User access token
+	 * @returns Whether the guilds were removed
+	 */
+	delete(key: string): boolean {
+		return this.#client.cache.guilds.delete(key);
+	}
+
+	/**
+	 * Checks if guilds are cached for a user
+	 * @param key - User access token
+	 * @returns Whether guilds are cached
+	 */
+	has(key: string): boolean {
+		return this.#client.cache.guilds.has(key);
+	}
+
+	/**
+	 * Clears all cached guilds
+	 */
+	clear(): void {
+		this.#client.cache.guilds.clear();
 	}
 }

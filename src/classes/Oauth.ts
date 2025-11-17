@@ -4,62 +4,85 @@ import {
 	Routes,
 	APIConnection,
 } from 'discord-api-types/v10';
-import { sign, verify } from 'jsonwebtoken';
+import { sign, verify, JsonWebTokenError } from 'jsonwebtoken';
 import { fetch } from 'undici';
 import { REST, DiscordAPIError, DiscordErrorData } from '@discordjs/rest';
 import { GuildManager } from '@managers/GuildManager';
 import { OAuthGuild } from '../types/OAuthGuild';
 import { Guild } from '@structures/Guild';
-import { UserManagers } from '@managers/UserManager';
+import { UserManager } from '@managers/UserManager';
 import { OAuthUser } from '../types/OAuthUser';
 import { User } from '@structures/User';
 import { ConnectionManager } from '@managers/ConnectionManager';
 import { Connection } from '@structures/Connection';
 
-interface OAuth2Options {
+/**
+ * Configuration options for the OAuth client
+ */
+export interface OAuthOptions {
+	/** Discord application client ID */
 	clientId: string;
+	/** Discord application client secret */
 	clientSecret: string;
+	/** Bot token for API requests */
 	token: string;
+	/** Discord API version (default: '10') */
 	apiVersion?: string;
 }
 
 /**
- * Main library class
- * @param {options} options - Options object
- * @property {string} #clientSecret - Client Secret
- * @property {string} #token - Bot access token
- * @property {string} clientId - Client ID
- * @property {string[]} scopes - Scopes to request
- * @property {string} redirectUri - Redirect URI
- * @property {object} cache - Cache object
- * @property {string} apiVersion - API version
- * @property {string} baseURL - Discord API URL
- * @property {REST} rest - REST client
- * @property {UserManagers} users - User managers
- * @property {GuildManager} guilds - Guild manager
- * @class
+ * Main OAuth2 client for Discord
  */
 export class Oauth {
-	#clientSecret: string;
-	#token: string;
-	clientId: string;
-	scopes: string[];
+	/** Client secret (private) */
+	readonly #clientSecret: string;
+	/** Bot token (private) */
+	readonly #token: string;
+
+	/** Discord application client ID */
+	readonly clientId: string;
+	/** OAuth2 scopes to request */
+	scopes: OAuth2Scopes[];
+	/** OAuth2 redirect URI */
 	redirectUri: string | null;
 
-	cache: {
-		guilds: Map<string, Guild[]>,
-		users: Map<string, User>,
-		connections: Map<string, Connection[]>,
+	/** Cache for users, guilds, and connections */
+	readonly cache: {
+		guilds: Map<string, Guild[]>;
+		users: Map<string, User>;
+		connections: Map<string, Connection[]>;
 	};
 
-	apiVersion: string;
-	baseURL: string;
-	rest: REST;
+	/** Discord API version */
+	readonly apiVersion: string;
+	/** Base Discord API URL */
+	readonly baseURL: string;
+	/** REST client instance */
+	readonly rest: REST;
 
-	guilds: GuildManager;
-	users: UserManagers;
-	connections: ConnectionManager;
-	constructor(options: OAuth2Options) {
+	/** Guild manager */
+	readonly guilds: GuildManager;
+	/** User manager */
+	readonly users: UserManager;
+	/** Connection manager */
+	readonly connections: ConnectionManager;
+
+	/**
+	 * Creates a new OAuth client instance
+	 * @param options - Configuration options
+	 */
+	constructor(options: OAuthOptions) {
+		// Validate required options
+		if (!options.clientId) {
+			throw new Error('Missing required option: clientId');
+		}
+		if (!options.clientSecret) {
+			throw new Error('Missing required option: clientSecret');
+		}
+		if (!options.token) {
+			throw new Error('Missing required option: token');
+		}
+
 		this.#clientSecret = options.clientSecret;
 		this.#token = options.token;
 		this.clientId = options.clientId;
@@ -72,8 +95,9 @@ export class Oauth {
 			connections: new Map(),
 		};
 
-		this.apiVersion = options.apiVersion || '10';
-		this.baseURL = 'https://discord.com/api/v' + this.apiVersion;
+		this.apiVersion = options.apiVersion ?? '10';
+		this.baseURL = `https://discord.com/api/v${this.apiVersion}`;
+		
 		this.rest = new REST({
 			api: 'https://discord.com/api',
 			version: this.apiVersion,
@@ -81,39 +105,71 @@ export class Oauth {
 		this.rest.setToken(this.#token);
 
 		this.guilds = new GuildManager(this);
-		this.users = new UserManagers(this);
+		this.users = new UserManager(this);
 		this.connections = new ConnectionManager(this);
 	}
 
 	/**
-	 * Set the redirect URI
-	 * @param {string} uri - Redirect URI
-	 * @returns {string} Redirect URI
+	 * Sets the OAuth2 redirect URI
+	 * @param uri - Redirect URI
+	 * @returns The redirect URI
 	 */
 	setRedirectUri(uri: string): string {
-		return this.redirectUri = uri;
+		if (!uri || typeof uri !== 'string') {
+			throw new Error('Invalid redirect URI');
+		}
+		this.redirectUri = uri;
+		return uri;
 	}
 
 	/**
-	 * Set the scopes
-	 * @returns {string} Oauth scopes
-	 * @param {string[]} scopes - OAuth scopes
+	 * Sets the OAuth2 scopes to request
+	 * @param scopes - Array of OAuth2 scopes
+	 * @returns Array of valid scopes
 	 */
-	setScopes(scopes: string[]): string[] {
-		return this.scopes = (scopes as OAuth2Scopes[]).filter(scope => Object.values(OAuth2Scopes).includes(scope));
+	setScopes(scopes: string[]): OAuth2Scopes[] {
+		if (!Array.isArray(scopes)) {
+			throw new Error('Scopes must be an array');
+		}
+		
+		const validScopes = scopes.filter(scope => 
+			Object.values(OAuth2Scopes).includes(scope as OAuth2Scopes)
+		) as OAuth2Scopes[];
+		
+		this.scopes = validScopes;
+		return validScopes;
 	}
 
 	/**
-	 * Get autorization URL
-	 * @return {string} - Authorization URL
+	 * Generates the OAuth2 authorization URL
+	 * @returns Authorization URL
+	 * @throws Error if redirect URI is not set
 	 */
 	getAuthorizationURL(): string {
-		if(!this.redirectUri) throw new Error('Missing or invalid redirectUri');
-		return `${this.baseURL}/oauth2/authorize?client_id=${this.clientId}&scope=${this.scopes.join('%20')}&response_type=code&redirect_uri=${this.redirectUri}`;
+		if (!this.redirectUri) {
+			throw new Error('Redirect URI must be set before generating authorization URL');
+		}
+		if (this.scopes.length === 0) {
+			throw new Error('At least one scope must be set');
+		}
+
+		const params = new URLSearchParams({
+			client_id: this.clientId,
+			redirect_uri: this.redirectUri,
+			response_type: 'code',
+			scope: this.scopes.join(' '),
+		});
+
+		return `${this.baseURL}/oauth2/authorize?${params.toString()}`;
 	}
 
-	private async tokenExchangeEndpoint(body): Promise<DiscordAPIError | string> {
-		const request = await fetch(this.baseURL + Routes.oauth2TokenExchange(), {
+	/**
+	 * Internal method to handle token exchange endpoint
+	 * @param body - URLSearchParams body for the request
+	 * @returns Signed JWT token containing access token data
+	 */
+	private async tokenExchangeEndpoint(body: URLSearchParams): Promise<string> {
+		const response = await fetch(this.baseURL + Routes.oauth2TokenExchange(), {
 			method: 'POST',
 			body,
 			headers: {
@@ -121,39 +177,58 @@ export class Oauth {
 			},
 		});
 
-		let json = (await request.json()) as RESTPostOAuth2AccessTokenResult | DiscordErrorData;
+		const json = await response.json() as RESTPostOAuth2AccessTokenResult | DiscordErrorData;
 
-		if(!request.ok) {
-			json = (json as DiscordErrorData);
-			throw new DiscordAPIError(json, json?.code, request.status, 'POST', `${this.baseURL}/oauth2/token`, { files: undefined, body });
+		if (!response.ok) {
+			const errorData = json as DiscordErrorData;
+			throw new DiscordAPIError(
+				errorData,
+				errorData?.code,
+				response.status,
+				'POST',
+				`${this.baseURL}/oauth2/token`,
+				{ files: undefined, body: body.toString() }
+			);
 		}
 
-		const token: string = sign(json, this.#clientSecret);
+		const tokenData = json as RESTPostOAuth2AccessTokenResult;
+		const token = sign(tokenData, this.#clientSecret);
+		const scopes = tokenData.scope.split(' ');
 
-		const scopes: string[] = (json as RESTPostOAuth2AccessTokenResult)?.scope.split(' ');
-
-		if (scopes.includes('identify') || scopes.includes('email')) await this.users.get(token, false);
-		if (scopes.includes('guilds')) await this.guilds.get(token, false);
-		if (scopes.includes('connections')) await this.connections.get(token, false);
+		// Pre-cache data based on scopes
+		if (scopes.includes('identify') || scopes.includes('email')) {
+			await this.users.get(token, false);
+		}
+		if (scopes.includes('guilds')) {
+			await this.guilds.get(token, false);
+		}
+		if (scopes.includes('connections')) {
+			await this.connections.get(token, false);
+		}
 
 		return token;
 	}
 
 	/**
-	 * OAuth Exchange Code for Access Token
-	 * @param {string} key - Access code from Discord
-	 * @return {Promise<RESTPostOAuth2AccessTokenResult>} - Access token
+	 * Exchanges an authorization code for an access token
+	 * @param code - Authorization code from Discord
+	 * @returns Signed JWT token containing access token data
+	 * @throws Error if code is invalid
 	 */
-	public async getAccess(key): Promise<string | Error> {
-		if(typeof key !== 'string') return new Error('Invalid authorization code');
-		// TODO Change fetch method to @discord.js/rest
+	async getAccess(code: string): Promise<string> {
+		if (!code || typeof code !== 'string') {
+			throw new Error('Invalid authorization code');
+		}
+		if (!this.redirectUri) {
+			throw new Error('Redirect URI must be set');
+		}
 
 		const body = new URLSearchParams({
 			client_id: this.clientId,
 			client_secret: this.#clientSecret,
 			grant_type: 'authorization_code',
 			redirect_uri: this.redirectUri,
-			code: key,
+			code: code,
 			scope: this.scopes.join(' '),
 		});
 
@@ -161,171 +236,266 @@ export class Oauth {
 	}
 
 	/**
-	 * Refresh user OAuth tokens
-	 * @param {string} key - Access token
-	 * @return {Promise<RESTPostOAuth2AccessTokenResult>} - User object
+	 * Refreshes an access token using a refresh token
+	 * @param key - Signed JWT token
+	 * @returns New signed JWT token
+	 * @throws Error if token is invalid
 	 */
-	public async refreshToken(key): Promise<string | Error> {
-		if(typeof key !== 'string') throw new Error('Invalid access code');
-		const access: RESTPostOAuth2AccessTokenResult = verify(key, this.#clientSecret);
+	async refreshToken(key: string): Promise<string> {
+		if (!key || typeof key !== 'string') {
+			throw new Error('Invalid access token');
+		}
+
+		let tokenData: RESTPostOAuth2AccessTokenResult;
+		try {
+			tokenData = verify(key, this.#clientSecret) as RESTPostOAuth2AccessTokenResult;
+		} catch (error) {
+			if (error instanceof JsonWebTokenError) {
+				throw new Error('Invalid or expired token');
+			}
+			throw error;
+		}
 
 		const body = new URLSearchParams({
 			client_id: this.clientId,
 			client_secret: this.#clientSecret,
 			grant_type: 'refresh_token',
-			refresh_token: access.refresh_token,
+			refresh_token: tokenData.refresh_token,
 		});
 
 		return await this.tokenExchangeEndpoint(body);
 	}
 
-
 	/**
-	 * Revoke User token
-	 * @param {string} key - Access token
-	 * @return {Promise<Record<string, boolean>>} - JSON object
+	 * Revokes a user's access token
+	 * @param key - Signed JWT token
+	 * @returns Object indicating success
+	 * @throws Error if token is invalid
 	 */
-	public async revokeToken(key): Promise<Record<string, boolean> | Error> {
-		if(typeof key !== 'string') throw new Error('Invalid access code');
-		const access: RESTPostOAuth2AccessTokenResult = verify(key, this.#clientSecret);
+	async revokeToken(key: string): Promise<{ revoked: boolean }> {
+		if (!key || typeof key !== 'string') {
+			throw new Error('Invalid access token');
+		}
 
-		const request = await fetch(this.baseURL + Routes.oauth2TokenRevocation(), {
+		let tokenData: RESTPostOAuth2AccessTokenResult;
+		try {
+			tokenData = verify(key, this.#clientSecret) as RESTPostOAuth2AccessTokenResult;
+		} catch (error) {
+			if (error instanceof JsonWebTokenError) {
+				throw new Error('Invalid or expired token');
+			}
+			throw error;
+		}
+
+		const response = await fetch(this.baseURL + Routes.oauth2TokenRevocation(), {
 			method: 'POST',
 			body: new URLSearchParams({
 				client_id: this.clientId,
 				client_secret: this.#clientSecret,
-				token: access.refresh_token,
+				token: tokenData.access_token,
 			}),
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded',
 			},
 		});
 
-		let json = await request.json() as DiscordErrorData;
-
-		if(!request.ok) {
-			json = json as DiscordErrorData;
-			throw new DiscordAPIError(json, json?.code, request.status, 'GET', `${this.baseURL}/users/@me/guilds`, { files: undefined, body: undefined });
+		if (!response.ok) {
+			const json = await response.json() as DiscordErrorData;
+			throw new DiscordAPIError(
+				json,
+				json?.code,
+				response.status,
+				'POST',
+				`${this.baseURL}/oauth2/token/revoke`,
+				{ files: undefined, body: undefined }
+			);
 		}
 
+		// Clear cached data for this user
 		this.cache.users.delete(key);
 		this.cache.guilds.delete(key);
 		this.cache.connections.delete(key);
 
-		return {
-			revoked: true,
-		};
+		return { revoked: true };
 	}
 
 	/**
-	 * Get User from cache
-	 * @param {string} key - Access token
-	 * @param {boolean} [cache=true] - Use cache
-	 * @return {Promise<User>} - User object
+	 * Gets a user from cache or fetches from API
+	 * @param key - Signed JWT token
+	 * @param cache - Whether to use cache
+	 * @returns User object
 	 */
-	async getUser(key: string, cache?: boolean): Promise<User> {
-		if(typeof key !== 'string') throw new Error('Invalid access code');
+	async getUser(key: string, cache: boolean = true): Promise<User> {
+		if (!key || typeof key !== 'string') {
+			throw new Error('Invalid access token');
+		}
 		return await this.users.get(key, cache);
 	}
 
 	/**
-	 * Fetch user from API
-	 * @param {string} key - Access token
-	 * @return {Promise<OAuthUser>} - User object
+	 * Fetches user data from Discord API
+	 * @param key - Signed JWT token
+	 * @returns Raw user data
 	 */
 	async fetchUser(key: string): Promise<OAuthUser> {
-		if(typeof key !== 'string') throw new Error('Invalid access code');
-		const access: RESTPostOAuth2AccessTokenResult = verify(key, this.#clientSecret);
+		if (!key || typeof key !== 'string') {
+			throw new Error('Invalid access token');
+		}
 
-		const res = await fetch(`${this.baseURL}/users/@me`, {
+		let tokenData: RESTPostOAuth2AccessTokenResult;
+		try {
+			tokenData = verify(key, this.#clientSecret) as RESTPostOAuth2AccessTokenResult;
+		} catch (error) {
+			if (error instanceof JsonWebTokenError) {
+				throw new Error('Invalid or expired token');
+			}
+			throw error;
+		}
+
+		const response = await fetch(`${this.baseURL}/users/@me`, {
 			headers: {
-				Authorization: `${access.token_type} ${access.access_token}`,
+				Authorization: `${tokenData.token_type} ${tokenData.access_token}`,
 			},
 		});
 
-		let json = (await res.json() as DiscordErrorData | OAuthUser);
+		const json = await response.json() as OAuthUser | DiscordErrorData;
 
-		if(res.status !== 200) {
-			json = (json as DiscordErrorData);
-			throw new DiscordAPIError(json, json?.code, res.status, 'GET', `${this.baseURL}/users/@me`, { files: undefined, body: undefined });
+		if (!response.ok) {
+			const errorData = json as DiscordErrorData;
+			throw new DiscordAPIError(
+				errorData,
+				errorData?.code,
+				response.status,
+				'GET',
+				`${this.baseURL}/users/@me`,
+				{ files: undefined, body: undefined }
+			);
 		}
 
-		json = json as OAuthUser;
+		const userData = json as OAuthUser;
+		userData.access_token = tokenData;
 
-		json.access_token = access;
-
-		return json;
+		return userData;
 	}
 
 	/**
-	 * Get guilds from cache
-	 * @param {string} key - Access token
-	 * @param {boolean} [cache=true] - Use cache
-	 * @return {Promise<Guild[]>} - Guilds object
+	 * Gets user's guilds from cache or fetches from API
+	 * @param key - Signed JWT token
+	 * @param cache - Whether to use cache
+	 * @returns Array of guild objects
 	 */
-	async getGuilds(key: string, cache?: boolean): Promise<Guild[]> {
-		if(typeof key !== 'string') throw new Error('Invalid access code');
+	async getGuilds(key: string, cache: boolean = true): Promise<Guild[]> {
+		if (!key || typeof key !== 'string') {
+			throw new Error('Invalid access token');
+		}
 		return await this.guilds.get(key, cache);
 	}
 
 	/**
-	 * Fetch guild from API
-	 * @param {string} key - Access token
-	 * @return {Promise<OAuthGuild[]>} - Guilds object
+	 * Fetches guild data from Discord API
+	 * @param key - Signed JWT token
+	 * @returns Raw guild data array
 	 */
 	async fetchGuilds(key: string): Promise<OAuthGuild[]> {
-		if(typeof key !== 'string') throw new Error('Invalid access code');
-		const access: RESTPostOAuth2AccessTokenResult = verify(key, this.#clientSecret);
+		if (!key || typeof key !== 'string') {
+			throw new Error('Invalid access token');
+		}
 
-		const res = await fetch(`${this.baseURL}/users/@me/guilds`, {
+		let tokenData: RESTPostOAuth2AccessTokenResult;
+		try {
+			tokenData = verify(key, this.#clientSecret) as RESTPostOAuth2AccessTokenResult;
+		} catch (error) {
+			if (error instanceof JsonWebTokenError) {
+				throw new Error('Invalid or expired token');
+			}
+			throw error;
+		}
+
+		const response = await fetch(`${this.baseURL}/users/@me/guilds`, {
 			headers: {
-				Authorization: `${access.token_type} ${access.access_token}`,
+				Authorization: `${tokenData.token_type} ${tokenData.access_token}`,
 			},
 		});
 
-		let json = (await res.json() as DiscordErrorData | OAuthGuild[]);
+		const json = await response.json() as OAuthGuild[] | DiscordErrorData;
 
-		if(res.status !== 200) {
-			json = json as DiscordErrorData;
-			throw new DiscordAPIError(json, json?.code, res.status, 'GET', `${this.baseURL}/users/@me/guilds`, { files: undefined, body: undefined });
+		if (!response.ok) {
+			const errorData = json as DiscordErrorData;
+			throw new DiscordAPIError(
+				errorData,
+				errorData?.code,
+				response.status,
+				'GET',
+				`${this.baseURL}/users/@me/guilds`,
+				{ files: undefined, body: undefined }
+			);
 		}
 
 		return json as OAuthGuild[];
 	}
 
 	/**
-	 * Get connections from cache
-	 * @param {string} key - Access token
-	 * @param {boolean} [cache=true] - Use cache
-	 * @return {Promise<Connection[]>} - Connections object
+	 * Gets user's connections from cache or fetches from API
+	 * @param key - Signed JWT token
+	 * @param cache - Whether to use cache
+	 * @returns Array of connection objects
 	 */
-	async getUserConnections(key: string, cache?: boolean): Promise<Connection[]> {
-		if(typeof key !== 'string') throw new Error('Invalid access code');
+	async getUserConnections(key: string, cache: boolean = true): Promise<Connection[]> {
+		if (!key || typeof key !== 'string') {
+			throw new Error('Invalid access token');
+		}
 		return await this.connections.get(key, cache);
 	}
 
 	/**
-	 * Fetch connections from API
-	 * @param {string} key - Access token
-	 * @return {Promise<APIConnection[]>} - User object
+	 * Fetches connection data from Discord API
+	 * @param key - Signed JWT token
+	 * @returns Raw connection data array
 	 */
-	async fetchUserConnections(key: string): Promise<(APIConnection & { two_way_link: boolean; })[]> {
-		if(typeof key !== 'string') throw new Error('Invalid access code');
-		const access: RESTPostOAuth2AccessTokenResult = verify(key, this.#clientSecret);
+	async fetchUserConnections(key: string): Promise<(APIConnection & { two_way_link: boolean })[]> {
+		if (!key || typeof key !== 'string') {
+			throw new Error('Invalid access token');
+		}
 
-		const res = await fetch(`${this.baseURL}/users/@me/connections`, {
+		let tokenData: RESTPostOAuth2AccessTokenResult;
+		try {
+			tokenData = verify(key, this.#clientSecret) as RESTPostOAuth2AccessTokenResult;
+		} catch (error) {
+			if (error instanceof JsonWebTokenError) {
+				throw new Error('Invalid or expired token');
+			}
+			throw error;
+		}
+
+		const response = await fetch(`${this.baseURL}/users/@me/connections`, {
 			headers: {
-				Authorization: `${access.token_type} ${access.access_token}`,
+				Authorization: `${tokenData.token_type} ${tokenData.access_token}`,
 			},
 		});
 
-		let json = (await res.json() as DiscordErrorData | (APIConnection & { two_way_link: boolean; })[]);
+		const json = await response.json() as (APIConnection & { two_way_link: boolean })[] | DiscordErrorData;
 
-		if(res.status !== 200) {
-			json = json as DiscordErrorData;
-			throw new DiscordAPIError(json, json?.code, res.status, 'GET', `${this.baseURL}/users/@me/connections`, { files: undefined, body: undefined });
+		if (!response.ok) {
+			const errorData = json as DiscordErrorData;
+			throw new DiscordAPIError(
+				errorData,
+				errorData?.code,
+				response.status,
+				'GET',
+				`${this.baseURL}/users/@me/connections`,
+				{ files: undefined, body: undefined }
+			);
 		}
 
-		return json as (APIConnection & { two_way_link: boolean; })[];
+		return json as (APIConnection & { two_way_link: boolean })[];
+	}
+
+	/**
+	 * Clears all cached data
+	 */
+	clearCache(): void {
+		this.cache.users.clear();
+		this.cache.guilds.clear();
+		this.cache.connections.clear();
 	}
 }

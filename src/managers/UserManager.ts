@@ -1,33 +1,64 @@
 import { Oauth } from '@classes/Oauth';
 import { User } from '@structures/User';
-import { DiscordAPIError } from '@discordjs/rest';
 
 /**
- * User manager class
- * @param {Oauth} client - Client instance
- * @class
- * @property {Oauth} #client - Client instance
+ * Manages user data and caching
  */
-export class UserManagers {
-	client: Oauth;
-	constructor(client) {
-		this.client = client;
+export class UserManager {
+	/** OAuth client instance */
+	readonly #client: Oauth;
+
+	/**
+	 * Creates a new UserManager instance
+	 * @param client - OAuth client instance
+	 */
+	constructor(client: Oauth) {
+		this.#client = client;
 	}
 
 	/**
-	 * Get a user
-	 * @param {string} key User Access Token
-	 * @param {boolean} cache whether to get from cache or force fetch
-	 * @returns {Promise<User[]>}
+	 * Gets a user, either from cache or by fetching from the API
+	 * @param key - User access token
+	 * @param useCache - Whether to use cached data if available
+	 * @returns The user object
 	 */
-	async get(key, cache = true): Promise<User> {
-		const mapData = this.client.cache.users.get(key);
+	async get(key: string, useCache: boolean = true): Promise<User> {
+		if (useCache) {
+			const cached = this.#client.cache.users.get(key);
+			if (cached) {
+				return cached;
+			}
+		}
 
-		if (mapData && cache) return mapData;
+		const data = await this.#client.fetchUser(key);
+		const user = new User(this.#client, data);
+		
+		this.#client.cache.users.set(key, user);
+		return user;
+	}
 
-		const fetched = await this.client.fetchUser(key);
+	/**
+	 * Removes a user from the cache
+	 * @param key - User access token
+	 * @returns Whether the user was removed
+	 */
+	delete(key: string): boolean {
+		return this.#client.cache.users.delete(key);
+	}
 
-		this.client.cache.users.set(key, new User(this.client, fetched));
-		return new User(this.client, fetched);
+	/**
+	 * Checks if a user is cached
+	 * @param key - User access token
+	 * @returns Whether the user is cached
+	 */
+	has(key: string): boolean {
+		return this.#client.cache.users.has(key);
+	}
+
+	/**
+	 * Clears all cached users
+	 */
+	clear(): void {
+		this.#client.cache.users.clear();
 	}
 }

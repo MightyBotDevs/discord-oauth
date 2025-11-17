@@ -1,30 +1,46 @@
 import { BitField } from './BitField';
 
+/**
+ * Bitfield values for Discord user flags
+ */
 export const UserFlagsBits = {
-	STAFF: 1 << 0,
-	PARTNER: 1 << 1,
-	HYPESQUAD: 1 << 2,
-	BUG_HUNTER_LEVEL_1: 1 << 3,
-	HYPESQUAD_ONLINE_HOUSE_1: 1 << 6,
-	HYPESQUAD_ONLINE_HOUSE_2: 1 << 7,
-	HYPESQUAD_ONLINE_HOUSE_3: 1 << 8,
-	PREMIUM_EARLY_SUPPORTER: 1 << 9,
-	TEAM_PSEUDO_USER: 1 << 10,
-	BUG_HUNTER_LEVEL_2: 1 << 14,
-	VERIFIED_BOT: 1 << 16,
-	VERIFIED_DEVELOPER: 1 << 17,
-	CERTIFIED_MODERATOR: 1 << 18,
-	BOT_HTTP_INTERACTIONS: 1 << 19,
-};
+	STAFF: 1n << 0n,
+	PARTNER: 1n << 1n,
+	HYPESQUAD: 1n << 2n,
+	BUG_HUNTER_LEVEL_1: 1n << 3n,
+	HYPESQUAD_ONLINE_HOUSE_1: 1n << 6n,
+	HYPESQUAD_ONLINE_HOUSE_2: 1n << 7n,
+	HYPESQUAD_ONLINE_HOUSE_3: 1n << 8n,
+	PREMIUM_EARLY_SUPPORTER: 1n << 9n,
+	TEAM_PSEUDO_USER: 1n << 10n,
+	BUG_HUNTER_LEVEL_2: 1n << 14n,
+	VERIFIED_BOT: 1n << 16n,
+	VERIFIED_DEVELOPER: 1n << 17n,
+	CERTIFIED_MODERATOR: 1n << 18n,
+	BOT_HTTP_INTERACTIONS: 1n << 19n,
+	ACTIVE_DEVELOPER: 1n << 22n,
+} as const;
 
-export type UserFlagsTypes = keyof typeof UserFlagsBits;
+export type UserFlagsType = keyof typeof UserFlagsBits;
 
+/**
+ * Manages Discord user flag bitfields
+ */
 export class UserFlags extends BitField {
-	constructor(bits: number | bigint | number[] | bigint[]) {
+	/**
+	 * Creates a new UserFlags instance
+	 * @param bits - Initial user flags value(s)
+	 */
+	constructor(bits: number | bigint | number[] | bigint[] = 0n) {
 		super(UserFlagsBits, bits);
 	}
 
-	has(value: keyof typeof UserFlagsBits): boolean {
+	/**
+	 * Checks if the user has a specific flag
+	 * @param value - User flag to check
+	 * @returns Whether the flag is present
+	 */
+	has(value: UserFlagsType): boolean {
 		return super.has(value);
 	}
 }
